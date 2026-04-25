@@ -6,6 +6,7 @@ services:
     env_file: .env
     volumes:
       - ./google_credentials.json:/app/google_credentials.json:ro
+      - /etc/nginx/ssl/cert.pem:/app/ssl/cert.pem:ro
     depends_on:
       db:
         condition: service_healthy

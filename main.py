@@ -1,9 +1,10 @@
-"""TimeMirror — FastAPI app with aiogram webhook and APScheduler."""
+"""TimeMirror - FastAPI app with aiogram webhook and APScheduler."""
 import logging
+import os
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Update
+from aiogram.types import BufferedInputFile, Update
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -17,7 +18,7 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ── Bot + Dispatcher ──────────────────────────────────────────────────────────
+# -- Bot + Dispatcher ---------------------------------------------------------
 
 bot = Bot(token=settings.telegram_bot_token)
 dp = Dispatcher(storage=MemoryStorage())
@@ -28,7 +29,7 @@ dp.include_router(reminder.router)
 dp.include_router(status.router)
 dp.include_router(user_settings.router)
 
-# ── FastAPI app ───────────────────────────────────────────────────────────────
+# -- FastAPI app --------------------------------------------------------------
 
 app = FastAPI(title="TimeMirror")
 
@@ -41,13 +42,20 @@ async def on_startup() -> None:
 
     webhook_url = settings.telegram_webhook_url
     if webhook_url:
+        cert_path = "/app/ssl/cert.pem"
+        certificate = None
+        if os.path.exists(cert_path):
+            with open(cert_path, "rb") as f:
+                certificate = BufferedInputFile(f.read(), filename="cert.pem")
+            log.info("SSL certificate found, will upload to Telegram")
         await bot.set_webhook(
             url=webhook_url,
+            certificate=certificate,
             drop_pending_updates=True,
         )
         log.info("Webhook set: %s", webhook_url)
     else:
-        log.warning("TELEGRAM_WEBHOOK_URL not set — webhook not registered")
+        log.warning("TELEGRAM_WEBHOOK_URL not set - webhook not registered")
 
 
 @app.on_event("shutdown")
