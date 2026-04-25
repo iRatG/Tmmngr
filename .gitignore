@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+google_credentials.json
+migrations/versions/*.py
+*.egg-info/
+.DS_Store
+*.log
