@@ -10,6 +10,8 @@ from aiogram.types import Message
 
 from bot import keyboards as kb
 from bot import messages as msg
+from sqlalchemy import select
+
 from db.repositories.category_repo import get_user_categories, seed_default_categories
 from db.repositories.user_repo import get_or_create_user, set_google_sheet_connected
 from db.session import AsyncSessionFactory
@@ -40,8 +42,25 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
             )
 
     if not created:
-        await message.answer(msg.ALREADY_REGISTERED, reply_markup=kb.main_menu_kb())
-        await state.clear()
+        # Check if sheet is already connected
+        async with AsyncSessionFactory() as session:
+            conn_res = await session.execute(
+                select(GoogleConnection).where(
+                    GoogleConnection.user_id == user.id,
+                    GoogleConnection.connection_status == "active",
+                )
+            )
+            conn = conn_res.scalar_one_or_none()
+
+        if conn:
+            await message.answer(msg.ALREADY_REGISTERED, reply_markup=kb.main_menu_kb())
+            await state.clear()
+            return
+
+        # User exists but no sheet connected - prompt again
+        await message.answer(msg.SHEET_PROMPT, parse_mode="HTML")
+        await state.set_state(OnboardingState.waiting_for_sheet)
+        await state.update_data(user_id=user.id)
         return
 
     await message.answer(msg.WELCOME, parse_mode="HTML")
