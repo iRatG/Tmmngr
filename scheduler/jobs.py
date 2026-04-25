@@ -22,6 +22,7 @@ def setup_jobs(bot: Bot) -> AsyncIOScheduler:
     from services.reminder_service import send_open_block_reminders
     from services.analytics_service import build_daily_aggregates
     from services.summary_service import send_evening_reports, send_weekly_reports
+    from services.sheets_sync_service import pull_corrections_all_users
 
     scheduler = get_scheduler()
 
@@ -59,6 +60,15 @@ def setup_jobs(bot: Bot) -> AsyncIOScheduler:
         args=[bot],
         id="weekly_reports",
         replace_existing=True,
+    )
+
+    # Sheets pull: every 30 minutes
+    scheduler.add_job(
+        pull_corrections_all_users,
+        trigger=IntervalTrigger(minutes=30),
+        id="sheets_pull",
+        replace_existing=True,
+        misfire_grace_time=60,
     )
 
     return scheduler
