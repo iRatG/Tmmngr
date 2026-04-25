@@ -144,6 +144,56 @@ async def _pull_for_user(
     return updated
 
 
+async def _pull_categories_for_user(
+    session: AsyncSession,
+    conn: GoogleConnection,
+    user: User,
+) -> int:
+    """Read categories sheet and create new categories not yet in DB. Returns count added."""
+    try:
+        rows = await asyncio.to_thread(
+            google_sheets.read_categories_sheet, conn.spreadsheet_id
+        )
+    except Exception as e:
+        log.warning("Failed to read categories sheet for user %d: %s", user.id, e)
+        return 0
+
+    existing_result = await session.execute(
+        select(Category).where(Category.user_id == user.id)
+    )
+    existing = {cat.name.lower(): cat for cat in existing_result.scalars().all()}
+
+    added = 0
+    for row in rows:
+        name = (row.get("name") or "").strip()
+        if not name or name.lower() in existing:
+            continue
+        new_cat = Category(
+            user_id=user.id,
+            name=name,
+            is_active=True,
+            sort_order=len(existing) + added + 1,
+        )
+        session.add(new_cat)
+        added += 1
+
+    if added:
+        await session.flush()
+        all_result = await session.execute(
+            select(Category).where(Category.user_id == user.id).order_by(Category.sort_order)
+        )
+        all_cats = list(all_result.scalars().all())
+        cat_rows = [(c.id, c.name, c.is_active, c.sort_order) for c in all_cats]
+        try:
+            await asyncio.to_thread(
+                google_sheets.write_categories_to_sheet, conn.spreadsheet_id, cat_rows
+            )
+        except Exception as e:
+            log.warning("Failed to write categories back to sheet for user %d: %s", user.id, e)
+
+    return added
+
+
 async def pull_corrections_for_user(user_id: int) -> int:
     """Pull corrections for a single user. Returns count of updated rows."""
     async with AsyncSessionFactory() as session:
@@ -163,7 +213,9 @@ async def pull_corrections_for_user(user_id: int) -> int:
     conn, user = row
     async with AsyncSessionFactory() as session:
         async with session.begin():
-            count = await _pull_for_user(session, conn, user)
+            count_logs = await _pull_for_user(session, conn, user)
+            count_cats = await _pull_categories_for_user(session, conn, user)
+            count = count_logs + count_cats
             if count > 0:
                 conn_obj = await session.get(GoogleConnection, conn.id)
                 if conn_obj:

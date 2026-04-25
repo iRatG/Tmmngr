@@ -94,3 +94,10 @@ def read_logs_sheet(spreadsheet_id: str) -> list[dict]:
     gc = _client()
     ws = gc.open_by_key(spreadsheet_id).worksheet("logs")
     return ws.get_all_records(expected_headers=SHEET_HEADERS["logs"])
+
+
+def read_categories_sheet(spreadsheet_id: str) -> list[dict]:
+    """Read categories sheet and return list of dicts keyed by header row."""
+    gc = _client()
+    ws = gc.open_by_key(spreadsheet_id).worksheet("categories")
+    return ws.get_all_records(expected_headers=SHEET_HEADERS["categories"])

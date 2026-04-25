@@ -171,20 +171,20 @@ async def cb_finish_confirm(callback: CallbackQuery) -> None:
         return
 
     async with AsyncSessionFactory() as session:
-        user = await get_user_by_telegram_id(session, callback.from_user.id)
-        if not user:
-            await callback.answer(msg.ERROR_GENERIC)
-            return
-
         async with session.begin():
+            user = await get_user_by_telegram_id(session, callback.from_user.id)
+            if not user:
+                await callback.answer(msg.ERROR_GENERIC)
+                return
             closed = await finish_block(session, user.id)
+        # transaction committed
 
         if not closed:
             await callback.message.edit_text(msg.NO_OPEN_BLOCK)
             await callback.answer()
             return
 
-        # Resolve category for display
+        # Resolve category for display (new auto-transaction)
         from sqlalchemy import select
         from db.models import Category
         result = await session.execute(
