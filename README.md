@@ -196,10 +196,12 @@ timemirror/
 | 3 | keyboards, messages, onboarding handler, google_sheets integration, user/category repos | ✅ |
 | 4 | activity_repo, activity_service, start/finish block handlers | ✅ |
 | 5 | reminder_service, scheduler/jobs, reminder handler | ✅ |
-| 6 | analytics_service (агрегаты), summary_service (DeepSeek отчёты) | 🔜 |
-| 7 | sheets_sync_service (pull правок из Sheets → DB) | 🔜 |
-| 8 | status handler, settings handler, main.py (всё собрать вместе) | 🔜 |
-| 9 | docker compose up + webhook register + e2e тест в боте | 🔜 |
+| 6 | analytics_service (агрегаты), summary_service (DeepSeek отчёты) | ✅ |
+| 7 | sheets_sync_service (pull правок из Sheets → DB) | ✅ |
+| 8 | status handler, settings handler, main.py (всё собрать) | ✅ |
+| 9 | docker compose rebuild + webhook + e2e тест: POST /webhook 200 OK | ✅ |
+
+**Бот запущен и работает.** Scheduler: 5 jobs. test_infra: 16/16. test_logic: 26/26.
 
 ---
 
@@ -225,7 +227,16 @@ timemirror/
 cd /opt/timemirror
 docker compose up -d
 docker compose exec app alembic upgrade head
-# Зарегистрировать webhook:
-curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-  -d "url=https://<YOUR_DOMAIN_OR_IP>/webhook"
+
+# Зарегистрировать webhook с самоподписанным сертификатом (обязательно!):
+curl -F "url=https://<IP>/webhook" \
+  -F "certificate=@/etc/nginx/ssl/cert.pem" \
+  "https://api.telegram.org/bot<TOKEN>/setWebhook"
+
+# Проверить:
+curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
+# has_custom_certificate должен быть true, last_error_message отсутствовать
 ```
+
+> **Важно:** при самоподписанном SSL нужно передавать сертификат в setWebhook.
+> Без этого Telegram не может проверить хост и не отправляет обновления.

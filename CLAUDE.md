@@ -102,9 +102,35 @@ migrations/
 | 5 | reminder + scheduler | DONE |
 | 6 | analytics + DeepSeek summary | DONE |
 | 7 | sheets_sync pull | DONE |
-| 8 | status handler + settings + main.py | NEXT |
-| 9 | rebuild + webhook + e2e test | TODO |
+| 8 | status handler + settings + main.py | DONE |
+| 9 | rebuild + webhook + e2e test | DONE |
+
+**Бот живой.** POST /webhook → 200 OK. Scheduler: 5 jobs.
 
 ## Тесты
 - `test_infra.py` — инфраструктура (DB connection, 8 таблиц, CRUD, /health) → 16/16
 - `test_logic.py` — бизнес-логика (URL parsing, categories, user flow, analytics) → 26/26
+
+## Уроки сессии 9 (nginx + Telegram webhook)
+
+### nginx SSL не был включён по умолчанию
+После сессии 1 nginx слушал только :80. Пришлось создать `/etc/nginx/sites-available/timemirror`:
+```nginx
+server {
+    listen 443 ssl;
+    ssl_certificate /etc/nginx/ssl/cert.pem;
+    ssl_certificate_key /etc/nginx/ssl/key.pem;
+    location / { proxy_pass http://127.0.0.1:8000; }
+}
+server { listen 80; return 301 https://$host$request_uri; }
+```
+Затем: `ln -s ... sites-enabled`, удалить default, `nginx -t && nginx -s reload`.
+
+### Telegram webhook с самоподписанным SSL — нужно загрузить сертификат
+```bash
+curl -F "url=https://IP/webhook" \
+  -F "certificate=@/etc/nginx/ssl/cert.pem" \
+  "https://api.telegram.org/bot<TOKEN>/setWebhook"
+```
+Без `-F certificate=` Telegram возвращает SSL verify error и не присылает обновления.
+Проверка: `getWebhookInfo` → `has_custom_certificate: true`, нет `last_error_message`.
