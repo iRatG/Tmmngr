@@ -4,7 +4,6 @@ __pycache__/
 *.pyo
 .env
 google_credentials.json
-migrations/versions/*.py
 *.egg-info/
 .DS_Store
 *.log
