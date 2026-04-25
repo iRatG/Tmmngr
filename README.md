@@ -227,5 +227,5 @@ docker compose up -d
 docker compose exec app alembic upgrade head
 # Зарегистрировать webhook:
 curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-  -d "url=https://83.222.22.95/webhook"
+  -d "url=https://<YOUR_DOMAIN_OR_IP>/webhook"
 ```
